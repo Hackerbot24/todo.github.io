@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" sizes="32x32" href="./images/favicon-32x32.png">
+    <title>Todo App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@400;700&display=swap');
+
+        :root {
+            --bg-light: linear-gradient(135deg, #E0EAFC 0%, #CFDEF3 100%);
+            --bg-dark: linear-gradient(135deg, #1E3A8A 0%, #3730A3 100%);
+            --todo-bg-light: #FFFFFF;
+            --todo-bg-dark: #25273C;
+            --text-light: #484B6A;
+            --text-dark: #CACDE8;
+        }
+
+        body {
+            font-family: 'Josefin Sans', sans-serif;
+            transition: background 0.3s ease;
+        }
+
+        header {
+            background-color: blue;
+        }
+
+        .todo-item {
+            transition: all 0.3s ease;
+        }
+
+        .todo-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .completed {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+
+        .dark .todo-item {
+            background-color: var(--todo-bg-dark);
+            color: var(--text-dark);
+        }
+
+        .light .todo-item {
+            background-color: var(--todo-bg-light);
+            color: var(--text-light);
+        }
+
+        .toggle-theme {
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .toggle-theme:hover {
+            transform: scale(1.1);
+        }
+
+        .drag-handle {
+            cursor: move;
+        }
+
+         footer a {
+            color: var(--purple);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4 transition-all duration-300 ease-in-out light" x-data="todoApp()">
+    <div class="w-full max-w-md">
+        <header class="mb-8 flex justify-between items-center">
+            <h1 class="text-3xl font-bold text-white tracking-[0.3em]">TODO</h1>
+            <div class="toggle-theme" @click="toggleTheme()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+            </div>
+        </header>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+            <div class="p-4">
+                <input type="text" x-model="newTodo" @keydown.enter="addTodo" placeholder="Create a new todo..." class="w-full p-2 rounded-md border border-gray-300 dark:border-gray-700 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <ul id="todo-list" class="divide-y divide-gray-200 dark:divide-gray-700">
+                <template x-for="todo in filteredTodos" :key="todo.id">
+                    <li class="todo-item flex items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 ease-in-out" :class="{ 'completed': todo.completed }">
+                        <div class="drag-handle mr-3 cursor-move">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="9"><path fill="none" stroke="#FFF" stroke-width="2" d="M1 4.304L3.696 7l6-6"/></svg>
+                                <path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <input type="checkbox" :checked="todo.completed" @change="toggleTodo(todo)" class="mr-3">
+                        <span x-text="todo.text" class="flex-grow"></span>
+                        <button @click="deleteTodo(todo)" class="ml-2 text-red-500 hover:text-red-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </li>
+                </template>
+            </ul>
+
+            <div class="flex justify-between items-center p-4 text-sm text-gray-500 dark:text-gray-400">
+                <span x-text="activeCount + ' items left'"></span>
+                <div class="space-x-2">
+                    <button @click="filter = 'all'" :class="{ 'text-blue-500': filter === 'all' }" class="hover:text-blue-700">All</button>
+                    <button @click="filter = 'active'" :class="{ 'text-blue-500': filter === 'active' }" class="hover:text-blue-700">Active</button>
+                    <button @click="filter = 'completed'" :class="{ 'text-blue-500': filter === 'completed' }" class="hover:text-blue-700">Completed</button>
+                </div>
+                <button @click="clearCompleted" class="hover:text-blue-700">Clear Completed</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="mt-8 text-center text-gray-500 dark:text-gray-400">
+        <p>Drag and drop to reorder list</p>
+        Challenge by <a href="https://www.frontendmentor.io?ref=challenge" target="_blank">Frontend Mentor</a>. 
+        Coded by <a href="https://github.com/Hackerbot24">Hackerbot24</a>.
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/gh/alpinejs/alpine@v2.x.x/dist/alpine.min.js" defer></script>
+    <script>
+        function todoApp() {
+            return {
+                todos: [],
+                newTodo: '',
+                filter: 'all',
+                theme: 'light',
+
+                init() {
+                    this.todos = JSON.parse(localStorage.getItem('todos')) || [];
+                    this.setupSortable();
+                    this.applyTheme();
+                },
+
+                get filteredTodos() {
+                    if (this.filter === 'active') {
+                        return this.todos.filter(todo => !todo.completed);
+                    } else if (this.filter === 'completed') {
+                        return this.todos.filter(todo => todo.completed);
+                    }
+                    return this.todos;
+                },
+
+                get activeCount() {
+                    return this.todos.filter(todo => !todo.completed).length;
+                },
+
+                addTodo() {
+                    if (this.newTodo.trim()) {
+                        this.todos.push({
+                            id: Date.now(),
+                            text: this.newTodo.trim(),
+                            completed: false
+                        });
+                        this.newTodo = '';
+                        this.saveTodos();
+                    }
+                },
+
+                toggleTodo(todo) {
+                    todo.completed = !todo.completed;
+                    this.saveTodos();
+                },
+
+                deleteTodo(todo) {
+                    this.todos = this.todos.filter(t => t.id !== todo.id);
+                    this.saveTodos();
+                },
+
+                clearCompleted() {
+                    this.todos = this.todos.filter(todo => !todo.completed);
+                    this.saveTodos();
+                },
+
+                saveTodos() {
+                    localStorage.setItem('todos', JSON.stringify(this.todos));
+                },
+
+                setupSortable() {
+                    new Sortable(document.getElementById('todo-list'), {
+                        animation: 150,
+                        ghostClass: 'bg-gray-100',
+                        handle: '.drag-handle',
+                        onEnd: () => {
+                            this.todos = Array.from(document.querySelectorAll('.todo-item'))
+                                .map(el => this.todos.find(todo => todo.id === parseInt(el.dataset.id)));
+                            this.saveTodos();
+                        }
+                    });
+                },
+
+                toggleTheme() {
+                    this.theme = this.theme === 'light' ? 'dark' : 'light';
+                    this.applyTheme();
+                },
+
+                applyTheme() {
+                    document.body.classList.remove('light', 'dark');
+                    document.body.classList.add(this.theme);
+                    localStorage.setItem('theme', this.theme);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
